@@ -18,14 +18,15 @@ import kotlin.coroutines.EmptyCoroutineContext
 
 internal class Receiver : BroadcastReceiver() {
   private var accelJob: Job? = null
-  private val startAccel = "\n!function(){" +
-      "let e=0;" +
-      "Bangle.on(\"accel\",a=>e=Math.max(e,a.mag))," +
-      "this.accel_interval&&clearInterval(this.accel_interval)," +
-      "this.accel_interval=setInterval(()=>{" +
-      "console.log(\"[SLEEP_max\",e.toFixed(6),\"]\"),e=0" +
-      "},1e4)" +
-      "}();\n"
+  private val startAccel =
+      "\n!function(){" +
+          "let e=0;" +
+          "Bangle.on(\"accel\",a=>e=Math.max(e,a.mag))," +
+          "this.accel_interval&&clearInterval(this.accel_interval)," +
+          "this.accel_interval=setInterval(()=>{" +
+          "console.log(\"[accel_max\",e.toFixed(6),\"]\"),e=0" +
+          "},1e4)" +
+          "}();\n"
 
   override fun onReceive(context: Context, intent: Intent) {
     Log.d("Receiver", "onReceive: " + intent.action)
@@ -34,12 +35,9 @@ internal class Receiver : BroadcastReceiver() {
         if (Communicate.isConnected) {
           context.sendBroadcast(Intent("com.urbandroid.sleep.watch.CONFIRM_CONNECTED"))
         } else {
-          goAsync {
-            connect(context)
-          }
+          goAsync { connect(context) }
         }
       }
-
       "com.urbandroid.sleep.watch.START_TRACKING" -> {
         goAsync {
           if (accelJob != null) accelJob!!.cancel()
@@ -51,9 +49,14 @@ internal class Receiver : BroadcastReceiver() {
           Communicate.streamLines().collect {
             Log.d("BLE Connection", it)
             val accel =
-                Regex("\\[SLEEP_max ([0-9\\.]+) \\]").findAll(it)
-                    .firstOrNull()?.groups?.get(1)?.value?.toFloatOrNull()
-                  ?: return@collect
+                Regex("\\[accel_max ([0-9\\.]+) \\]")
+                    .findAll(it)
+                    .firstOrNull()
+                    ?.groups
+                    ?.get(1)
+                    ?.value
+                    ?.toFloatOrNull()
+                    ?: return@collect
             if (accelJob != null) accelJob!!.cancel()
             accelJob = launch { scheduleAccel() }
             BanglePluginApp.batch += accel
@@ -64,7 +67,6 @@ internal class Receiver : BroadcastReceiver() {
           }
         }
       }
-
       "com.urbandroid.sleep.watch.HINT" -> {
         val repeatCount = intent.getIntExtra("REPEAT", 1)
         goAsync {
@@ -81,17 +83,18 @@ internal class Receiver : BroadcastReceiver() {
           )
         }
       }
-
       "com.urbandroid.sleep.watch.SET_BATCH_SIZE" -> {
         BanglePluginApp.batchSize = intent.getLongExtra("SIZE", 12).toInt()
         Log.i("Receiver", "Batch size " + BanglePluginApp.batchSize)
       }
-
       "com.urbandroid.sleep.watch.STOP_TRACKING" -> {
         goAsync {
-          if (!Communicate.isConnected) return@goAsync
+          if (!Communicate.isConnected) {
+            Log.i("Receiver", "Disconnected already before stopping")
+            return@goAsync
+          }
           Communicate.sendData(
-              "\nif (this.SLEEP_interval) clearInterval(this.SLEEP_interval);\n",
+              "\nif (this.accel_interval) clearInterval(this.accel_interval);\n",
           )
           Communicate.disconnect()
         }
@@ -100,8 +103,8 @@ internal class Receiver : BroadcastReceiver() {
   }
 
   private fun goAsync(
-    context: CoroutineContext = EmptyCoroutineContext,
-    block: suspend CoroutineScope.() -> Unit
+      context: CoroutineContext = EmptyCoroutineContext,
+      block: suspend CoroutineScope.() -> Unit
   ) {
     val pendingResult = goAsync()
     CoroutineScope(SupervisorJob()).launch(context) {
@@ -114,26 +117,29 @@ internal class Receiver : BroadcastReceiver() {
   }
 
   private suspend fun connect(context: Context) {
-    context.dataStore.data.map { it[DEVICE_KEY] }.collect {
-      if (it == null) {
-        val startIntent = context
-            .packageManager
-            .getLaunchIntentForPackage(context.packageName)
+    context.dataStore.data
+        .map { it[DEVICE_KEY] }
+        .collect {
+          if (it == null) {
+            val startIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
 
-        startIntent!!.flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
-            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
-        context.startActivity(startIntent)
-      } else {
-        Communicate.connect(it)
-      }
-    }
+            startIntent!!.flags =
+                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+            context.startActivity(startIntent)
+          } else {
+            Communicate.connect(it)
+          }
+        }
   }
 
   private fun sendBatch(context: Context) {
     val intent = Intent("com.urbandroid.sleep.watch.DATA_UPDATE")
     val _batch = BanglePluginApp.batch
     val batch =
-        _batch.sliceArray(IntRange(_batch.size - BanglePluginApp.batchSize, _batch.size - 1))
+        _batch
+            .sliceArray(IntRange(_batch.size - BanglePluginApp.batchSize, _batch.size - 1))
             .toFloatArray()
     Log.d("Receiver", "Sending " + batch.joinToString(",") { it.toString() })
     intent.setPackage("com.urbandroid.sleep")
@@ -148,4 +154,3 @@ internal class Receiver : BroadcastReceiver() {
     Communicate.sendData(startAccel)
   }
 }
-

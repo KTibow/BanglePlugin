@@ -26,14 +26,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.juul.kable.Advertisement
 
 @Composable
 fun ScanScreen(
-    data: DataStore<Preferences>,
     scanViewModel: ScanViewModel = viewModel(),
     onChoose: (String) -> Unit
 ) {

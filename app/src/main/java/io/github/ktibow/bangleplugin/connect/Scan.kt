@@ -25,7 +25,7 @@ class Scan : ComponentActivity() {
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background,
         ) {
-          ScanScreen(data = dataStore, onChoose = { onChoose(it) })
+          ScanScreen(onChoose = { onChoose(it) })
         }
       }
     }

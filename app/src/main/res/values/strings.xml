@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Bangle Plugin</string>
+    <string name="title_activity_permission">Permission</string>
+    <string name="title_activity_scan">Scan</string>
+</resources>

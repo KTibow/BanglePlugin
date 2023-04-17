@@ -1,12 +1,12 @@
-package io.github.ktibow.bangleplugin
+package io.github.ktibow.bangleplugin.communicate
 
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.juul.kable.State
-import io.github.ktibow.bangleplugin.communicate.BanglePluginApp
-import io.github.ktibow.bangleplugin.communicate.Communicate
+import io.github.ktibow.bangleplugin.DEVICE_KEY
+import io.github.ktibow.bangleplugin.dataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -59,10 +59,10 @@ internal class Receiver : BroadcastReceiver() {
                     ?: return@collect
             if (accelJob != null) accelJob!!.cancel()
             accelJob = launch { scheduleAccel() }
-            BanglePluginApp.batch += accel
-            if (BanglePluginApp.batch.size >= BanglePluginApp.batchSize) {
+            AppState.batch += accel
+            if (AppState.batch.size >= AppState.batchSize) {
               sendBatch(context)
-              BanglePluginApp.batch = arrayOf()
+              AppState.batch = arrayOf()
             }
           }
         }
@@ -84,8 +84,8 @@ internal class Receiver : BroadcastReceiver() {
         }
       }
       "com.urbandroid.sleep.watch.SET_BATCH_SIZE" -> {
-        BanglePluginApp.batchSize = intent.getLongExtra("SIZE", 12).toInt()
-        Log.i("Receiver", "Batch size " + BanglePluginApp.batchSize)
+        AppState.batchSize = intent.getLongExtra("SIZE", 12).toInt()
+        Log.i("Receiver", "Batch size " + AppState.batchSize)
       }
       "com.urbandroid.sleep.watch.STOP_TRACKING" -> {
         goAsync {
@@ -136,10 +136,10 @@ internal class Receiver : BroadcastReceiver() {
 
   private fun sendBatch(context: Context) {
     val intent = Intent("com.urbandroid.sleep.watch.DATA_UPDATE")
-    val _batch = BanglePluginApp.batch
+    val _batch = AppState.batch
     val batch =
         _batch
-            .sliceArray(IntRange(_batch.size - BanglePluginApp.batchSize, _batch.size - 1))
+            .sliceArray(IntRange(_batch.size - AppState.batchSize, _batch.size - 1))
             .toFloatArray()
     Log.d("Receiver", "Sending " + batch.joinToString(",") { it.toString() })
     intent.setPackage("com.urbandroid.sleep")
@@ -149,7 +149,7 @@ internal class Receiver : BroadcastReceiver() {
 
   private suspend fun scheduleAccel() {
     delay(20000)
-    if (BanglePluginApp.watchConnection?.state?.value != State.Connected) return
+    if (AppState.watchConnection?.state?.value != State.Connected) return
     Log.i("Receiver", "Starting accel (Scheduled)")
     Communicate.sendData(startAccel)
   }

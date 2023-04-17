@@ -11,65 +11,62 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.fold
 import kotlinx.coroutines.launch
 
-
 object Communicate : CoroutineScope {
   override val coroutineContext = Dispatchers.Default
-  val isConnected get() = BanglePluginApp.watchConnection != null && BanglePluginApp.watchConnection!!.state.value == State.Connected
+  val isConnected
+    get() =
+        AppState.watchConnection != null &&
+            AppState.watchConnection!!.state.value == State.Connected
   fun connect(device: String) {
-    if (BanglePluginApp.watchConnection == null || BanglePluginApp.watchConnection!!.identifier != device) BanglePluginApp.watchConnection =
-        peripheral(device)
-    launch {
-      BanglePluginApp.watchConnection!!.connect()
-    }
+    if (AppState.watchConnection == null || AppState.watchConnection!!.identifier != device)
+        AppState.watchConnection = peripheral(device)
+    launch { AppState.watchConnection!!.connect() }
   }
 
   fun disconnect() {
-    if (BanglePluginApp.watchConnection == null) return
-    launch {
-      BanglePluginApp.watchConnection!!.disconnect()
-    }
+    if (AppState.watchConnection == null) return
+    launch { AppState.watchConnection!!.disconnect() }
   }
 
-  private var xoff = false
-  private var xoffSince: Long = 0
+  private var xoff = false // if you want to implement xoff stuff send a pr
   fun streamLines(): Flow<String> {
-    if (BanglePluginApp.watchConnection == null) throw IllegalStateException("No connection")
+    if (AppState.watchConnection == null) throw IllegalStateException("No connection")
     return flow {
-      BanglePluginApp.watchConnection!!.observe(
-          characteristicOf(
-              "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
-              "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
-          ),
-      ).fold("") { accumulator, chunk ->
-        val totalData = accumulator + chunk.toString(Charsets.UTF_8).filter {
-          when (it.code) {
-            17 -> {
-              xoff = false
-              false
+      AppState.watchConnection!!.observe(
+              characteristicOf(
+                  "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
+                  "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
+              ),
+          )
+          .fold("") { accumulator, chunk ->
+            val totalData =
+                accumulator +
+                    chunk.toString(Charsets.UTF_8).filter {
+                      when (it.code) {
+                        17 -> {
+                          xoff = false
+                          false
+                        }
+                        19 -> {
+                          xoff = true
+                          false
+                        }
+                        else -> true
+                      }
+                    }
+            for (line in totalData.split('\n').dropLast(1)) {
+              emit(line)
             }
-
-            19 -> {
-              xoff = true
-              xoffSince = System.currentTimeMillis()
-              false
-            }
-
-            else -> true
+            totalData.split("\n").last()
           }
-        }
-        for (line in totalData.split('\n').dropLast(1)) {
-          emit(line)
-        }
-        totalData.split("\n").last()
-      }
     }
   }
 
   suspend fun sendData(data: String) {
-    if (BanglePluginApp.watchConnection == null) throw IllegalStateException("No connection")
+    if (AppState.watchConnection == null) throw IllegalStateException("No connection")
     val chunks = data.chunked(20)
     for (chunk in chunks) {
-      BanglePluginApp.watchConnection!!.write(
+      AppState.watchConnection!!.write(
           characteristicOf(
               "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
               "6e400002-b5a3-f393-e0a9-e50e24dcca9e",

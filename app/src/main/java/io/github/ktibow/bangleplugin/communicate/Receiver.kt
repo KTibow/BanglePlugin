@@ -131,7 +131,7 @@ internal class Receiver : BroadcastReceiver() {
               Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
       context.startActivity(startIntent)
     } else {
-      Communicate.connect(device)
+      Communicate.connect(device).join()
     }
   }
 

@@ -23,9 +23,9 @@ object Communicate : CoroutineScope {
     AppState.watchConnection!!.connect()
   }
 
-  fun disconnect() {
+  suspend fun disconnect() {
     if (AppState.watchConnection == null) return
-    launch { AppState.watchConnection!!.disconnect() }
+    AppState.watchConnection!!.disconnect()
   }
 
   private var xoff = false // if you want to implement xoff stuff send a pr

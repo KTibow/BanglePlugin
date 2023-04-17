@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,20 +22,23 @@ import io.github.ktibow.bangleplugin.MainActivity
 import io.github.ktibow.bangleplugin.ui.theme.BanglePluginTheme
 
 class Permission : ComponentActivity() {
-  private val permission = registerForActivityResult(RequestMultiplePermissions()) { granted ->
-    val allGranted = granted.all { it.value }
-    if (allGranted) {
-      val intent = Intent(
-          this, MainActivity::class.java,
-      )
-      startActivity(intent)
-      finish()
-    }
-  }
+  private val permission =
+      registerForActivityResult(RequestMultiplePermissions()) { granted ->
+        val allGranted = granted.all { it.value }
+        if (allGranted) {
+          val intent =
+              Intent(
+                  this,
+                  MainActivity::class.java,
+              )
+          startActivity(intent)
+          finish()
+        }
+      }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    this.onBackPressedDispatcher.addCallback(this, false) { }
+    this.onBackPressedDispatcher.addCallback(this, false) {}
     setContent {
       BanglePluginTheme {
         // A surface container using the 'background' color from the theme
@@ -42,22 +46,24 @@ class Permission : ComponentActivity() {
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background,
         ) {
-          Column(modifier = Modifier.padding(16.dp)) {
-            Text("Connect to Bangle")
-            Button(
-                onClick = {
-                  permission.launch(
-                      arrayOf(
-                          Manifest.permission.BLUETOOTH_CONNECT,
-                          Manifest.permission.BLUETOOTH_SCAN,
-                      ),
-                  )
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-              Text("Allow Bluetooth")
-            }
-          }
+          Column(
+              modifier = Modifier.padding(16.dp),
+              verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("Connect to Bangle")
+                Button(
+                    onClick = {
+                      permission.launch(
+                          arrayOf(
+                              Manifest.permission.BLUETOOTH_CONNECT,
+                              Manifest.permission.BLUETOOTH_SCAN,
+                          ),
+                      )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                  Text("Allow Bluetooth")
+                }
+              }
         }
       }
     }

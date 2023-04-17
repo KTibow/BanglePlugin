@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.coroutines.CoroutineContext
@@ -35,7 +36,10 @@ internal class Receiver : BroadcastReceiver() {
         if (Communicate.isConnected) {
           context.sendBroadcast(Intent("com.urbandroid.sleep.watch.CONFIRM_CONNECTED"))
         } else {
-          goAsync { connect(context) }
+          goAsync {
+            connect(context)
+            context.sendBroadcast(Intent("com.urbandroid.sleep.watch.CONFIRM_CONNECTED"))
+          }
         }
       }
       "com.urbandroid.sleep.watch.START_TRACKING" -> {
@@ -117,21 +121,18 @@ internal class Receiver : BroadcastReceiver() {
   }
 
   private suspend fun connect(context: Context) {
-    context.dataStore.data
-        .map { it[DEVICE_KEY] }
-        .collect {
-          if (it == null) {
-            val startIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+    val device = context.dataStore.data.map { it[DEVICE_KEY] }.first()
+    if (device == null) {
+      val startIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
 
-            startIntent!!.flags =
-                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
-                    Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
-            context.startActivity(startIntent)
-          } else {
-            Communicate.connect(it)
-          }
-        }
+      startIntent!!.flags =
+          Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+              Intent.FLAG_ACTIVITY_NEW_TASK or
+              Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+      context.startActivity(startIntent)
+    } else {
+      Communicate.connect(device)
+    }
   }
 
   private fun sendBatch(context: Context) {

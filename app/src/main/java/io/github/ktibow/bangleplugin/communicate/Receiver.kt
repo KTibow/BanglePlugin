@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.juul.kable.State
+import com.juul.kable.identifier
 import io.github.ktibow.bangleplugin.DEVICE_KEY
 import io.github.ktibow.bangleplugin.dataStore
 import kotlinx.coroutines.CoroutineScope
@@ -45,7 +46,9 @@ internal class Receiver : BroadcastReceiver() {
       "com.urbandroid.sleep.watch.START_TRACKING" -> {
         goAsync {
           if (accelJob != null) accelJob!!.cancel()
+          Log.d("CONNECTION", "a")
           if (!Communicate.isConnected) connect(context)
+          Log.d("CONNECTION", "b")
           accelJob = launch {
             Log.i("Receiver", "Starting accel")
             Communicate.sendData(startAccel)
@@ -90,6 +93,7 @@ internal class Receiver : BroadcastReceiver() {
       "com.urbandroid.sleep.watch.SET_BATCH_SIZE" -> {
         AppState.batchSize = intent.getLongExtra("SIZE", 12).toInt()
         Log.i("Receiver", "Batch size " + AppState.batchSize)
+        if (!Communicate.isConnected) goAsync { connect(context) }
       }
       "com.urbandroid.sleep.watch.STOP_TRACKING" -> {
         goAsync {
@@ -100,7 +104,7 @@ internal class Receiver : BroadcastReceiver() {
           Communicate.sendData(
               "\nif (this.accel_interval) clearInterval(this.accel_interval);\n",
           )
-          Communicate.disconnect()
+          AppState.watchConnection!!.disconnect()
         }
       }
     }
@@ -121,7 +125,9 @@ internal class Receiver : BroadcastReceiver() {
   }
 
   private suspend fun connect(context: Context) {
+    Log.d("CONNECTION", "a -> a")
     val device = context.dataStore.data.map { it[DEVICE_KEY] }.first()
+    Log.d("CONNECTION", "a -> b")
     if (device == null) {
       val startIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
 
@@ -131,8 +137,14 @@ internal class Receiver : BroadcastReceiver() {
               Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
       context.startActivity(startIntent)
     } else {
-      Communicate.connect(device).join()
+      Log.d("CONNECTION", "a -> b -> a")
+      if (AppState.watchConnection == null || AppState.watchConnection!!.identifier != device)
+          Communicate.register(device)
+      Log.d("CONNECTION", "a -> b -> b")
+      AppState.watchConnection!!.connect()
+      Log.d("CONNECTION", "a -> b -> c")
     }
+    Log.d("CONNECTION", "a -> c")
   }
 
   private fun sendBatch(context: Context) {

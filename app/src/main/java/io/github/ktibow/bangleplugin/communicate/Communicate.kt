@@ -2,14 +2,12 @@ package io.github.ktibow.bangleplugin.communicate
 
 import com.juul.kable.State
 import com.juul.kable.characteristicOf
-import com.juul.kable.identifier
 import com.juul.kable.peripheral
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.fold
-import kotlinx.coroutines.launch
 
 object Communicate : CoroutineScope {
   override val coroutineContext = Dispatchers.Default
@@ -17,15 +15,8 @@ object Communicate : CoroutineScope {
     get() =
         AppState.watchConnection != null &&
             AppState.watchConnection!!.state.value == State.Connected
-  fun connect(device: String) = launch {
-    if (AppState.watchConnection == null || AppState.watchConnection!!.identifier != device)
-        AppState.watchConnection = peripheral(device)
-    AppState.watchConnection!!.connect()
-  }
-
-  suspend fun disconnect() {
-    if (AppState.watchConnection == null) return
-    AppState.watchConnection!!.disconnect()
+  fun register(device: String) {
+    AppState.watchConnection = peripheral(device)
   }
 
   private var xoff = false // if you want to implement xoff stuff send a pr

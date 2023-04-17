@@ -17,10 +17,10 @@ object Communicate : CoroutineScope {
     get() =
         AppState.watchConnection != null &&
             AppState.watchConnection!!.state.value == State.Connected
-  fun connect(device: String) {
+  fun connect(device: String) = launch {
     if (AppState.watchConnection == null || AppState.watchConnection!!.identifier != device)
         AppState.watchConnection = peripheral(device)
-    launch { AppState.watchConnection!!.connect() }
+    AppState.watchConnection!!.connect()
   }
 
   fun disconnect() {
